@@ -90,7 +90,8 @@ class ServerQueueingSimulation:
 
 
     def update_queue(self):
-        print(self.q.queue)
+        if self.verbose:
+            print(self.q.queue)
         if self.q.empty():
             return
         for i in range(self.server_count):
