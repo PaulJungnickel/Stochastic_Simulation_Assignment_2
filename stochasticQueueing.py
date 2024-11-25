@@ -23,14 +23,15 @@ class ServerQueueingSimulation:
         
         self.verbose = verbose
         
-        rand.seed(42)
+        rand.seed(seed)
         
         print('starting Simulation')
 
         self.server_count = server_count
         self.server_busy = [False for i in range(self.server_count)]
 
-        
+        self.queue_type = queue_type
+        self.max_queue_len = max_queue_len
         if self.queue_type == 'FIFO':
             self.q = queue.Queue()
 
