@@ -44,10 +44,8 @@ class ServerQueueingSimulation:
         # Set the random seed for reproducibility
         rand.seed(self.seed)
 
-        # Initialize server states (all servers start as not busy)
+        # Initialize server states (all servers start as not busy) and the queue
         self.server_busy = [False for _ in range(self.server_count)]
-        
-        # Initialize the queue
         self.queue = queue.Queue() if queue_type == 'FIFO' else None
 
         # Create the SimPy environment and start the job arrival process
