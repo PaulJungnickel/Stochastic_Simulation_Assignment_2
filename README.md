@@ -1,15 +1,13 @@
 # Stochastic_Simulation_Assignment_2
-## Approximating the Area of the Mandelbrot Set Using Monte Carlo Estimation
+## Discrete Event Simulation of stochastic client-server interactions
 ## Authors:
 - Maarten Stork - 15761770
 - Paul Jungnickel - 15716554
 - Lucas Keijzer - 14041073
 
 ## Files:
-- `MaartenStork_15761770_PaulJungnick…5716554_LucasKeijzer_14041073.ipynb` - Notebook containing plotting functions and results
-- `mandelbrot.py` - Contains the Mandelbrot iteration algorithms
-- `sampling_methods.py` - Contains methods for generating samples from the complex plane
-- `GoogleColab.ipynb` - Contains the code from the Google Colab, this code can largly be ignored.
+- `MaartenStork_15761770_PaulJungnick…5716554_LucasKeijzer_14041073.ipynb` - Notebook containing the results
+- `stochasticQueueing.py` - Contains the DES code
 - `/plots` - Contains all the plots generated 
 
 ## Dependencies:
