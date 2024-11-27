@@ -13,7 +13,8 @@ class ServerQueueingSimulation:
         queue_type='FIFO',
         max_queue_len=1000,
         sim_duration=150,
-        seed = 42,
+        seed=42,
+        service_dist='exponential',
         verbose=False
     ):
         """
@@ -27,6 +28,7 @@ class ServerQueueingSimulation:
         - max_queue_len: Maximum length of the queue before rejecting jobs (default: 1000).
         - sim_duration: Total duration of the simulation (default: 150).
         - seed: Random seed for reproducibility (default: 42).
+        - service_dist: Service time distribution type ('exponential', 'deterministic', 'hyperexponential').
         - verbose: Whether to print detailed output during the simulation (default: False).
         """
         self.verbose = verbose
@@ -40,6 +42,7 @@ class ServerQueueingSimulation:
         self.total_waiting_time = 0
         self.completed_jobs = 0
         self.seed = seed
+        self.service_dist = service_dist
 
         # Set the random seed for reproducibility
         rand.seed(self.seed)
@@ -90,8 +93,20 @@ class ServerQueueingSimulation:
         if self.verbose:
             print(f"{start_time:.2f}: Server {server_index} starting job with wait time {wait_time:.2f}")
 
-        # Process the job, based on an exponential service time distribution
-        yield self.env.timeout(rand.exponential(1 / self.service_rate))
+        # Process the job based on the specified service time distribution
+        if self.service_dist == 'exponential':
+            service_time = rand.exponential(1 / self.service_rate)
+        elif self.service_dist == 'deterministic (M/D/n)':
+            service_time = 1 / self.service_rate
+        elif self.service_dist == 'hyperexponential':
+            if rand.rand() < 0.75:
+                service_time = rand.exponential(1.0)
+            else:
+                service_time = rand.exponential(5.0)
+        else:
+            raise ValueError("Unsupported service time distribution")
+
+        yield self.env.timeout(service_time)
 
         # Job completed, update the count and mark the server as idle
         self.completed_jobs += 1
@@ -139,22 +154,27 @@ if __name__ == '__main__':
     sim_duration = 150
     num_runs = 50  
     server_counts = [1, 2, 4]
+    service_dists = ['exponential', 'deterministic (M/D/n)', 'hyperexponential']
 
-    # Run the simulation for different server counts and compute average wait times
-    for n in server_counts:
-        results = []
-        for run_number in range(num_runs):
-            sim = ServerQueueingSimulation(
-                arrival_rate=arrival_rate,
-                service_rate=service_rate,
-                server_count=n,
-                sim_duration=sim_duration,
-                seed = run_number,
-                verbose=False,
-            )
-            results.append(sim.results()["Average Wait Time"])
+    # Run the simulation for different server counts and service distributions
+    for dist in service_dists:
+        print(f"Service Distribution: {dist}")
+        for n in server_counts:
+            results = []
+            for run_number in range(num_runs):
+                sim = ServerQueueingSimulation(
+                    arrival_rate=arrival_rate,
+                    service_rate=service_rate,
+                    server_count=n,
+                    sim_duration=sim_duration,
+                    seed=run_number,
+                    service_dist=dist,
+                    verbose=False,
+                )
+                results.append(sim.results()["Average Wait Time"])
 
-        # Calculate and print mean wait time and standard deviation for the given server count
-        mean_wait_time = np.mean(results)
-        std_dev = np.std(results, ddof=1)
-        print(f"n = {n}, Mean Wait Time = {mean_wait_time:.4f}, Std Dev = {std_dev:.4f}")
+            # Calculate and print mean wait time and standard deviation for the given server count
+            mean_wait_time = np.mean(results)
+            std_dev = np.std(results, ddof=1)
+            print(f"n = {n}, Mean Wait Time = {mean_wait_time:.4f}, Std Dev = {std_dev:.4f}")
+        print()
