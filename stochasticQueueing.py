@@ -7,22 +7,21 @@ import numpy as np
 class ServerQueueingSimulation:
     def __init__(
         self,
-        arrival_rate=1.0,
-        service_rate=1.0,
+        arrival_dist,
+        service_dist,
         server_count=1,
         queue_type='FIFO',
         max_queue_len=1000,
         sim_duration=150,
         seed=42,
-        service_dist='exponential',
         verbose=False
     ):
         """
         Initializes the server queueing simulation with given parameters.
 
         Parameters:
-        - arrival_rate: Rate of job arrivals (default: 1.0).
-        - service_rate: Rate of job servicing (default: 1.0).
+        - arrival_dist: Generator function with distribution of job arrivals.
+        - service_dist: Generator function with distribution of job service durations.
         - server_count: Number of servers available (default: 1).
         - queue_type: Type of queue used, currently only supports 'FIFO' (default: 'FIFO').
         - max_queue_len: Maximum length of the queue before rejecting jobs (default: 1000).
@@ -32,8 +31,8 @@ class ServerQueueingSimulation:
         - verbose: Whether to print detailed output during the simulation (default: False).
         """
         self.verbose = verbose
-        self.arrival_rate = arrival_rate
-        self.service_rate = service_rate
+        self.arrival_dist = arrival_dist
+        self.service_dist = service_dist
         self.server_count = server_count
         self.max_queue_len = max_queue_len
         self.sim_duration = sim_duration
@@ -42,7 +41,6 @@ class ServerQueueingSimulation:
         self.total_waiting_time = 0
         self.completed_jobs = 0
         self.seed = seed
-        self.service_dist = service_dist
 
         # Set the random seed for reproducibility
         rand.seed(self.seed)
@@ -75,7 +73,7 @@ class ServerQueueingSimulation:
                 self.update_queue()
 
             # Wait for the next job arrival, based on an exponential distribution
-            yield self.env.timeout(rand.exponential(1 / self.arrival_rate))
+            yield self.env.timeout(self.arrival_dist())
 
     def server_job(self, server_index, arrival_time):
         """
@@ -94,19 +92,7 @@ class ServerQueueingSimulation:
             print(f"{start_time:.2f}: Server {server_index} starting job with wait time {wait_time:.2f}")
 
         # Process the job based on the specified service time distribution
-        if self.service_dist == 'exponential':
-            service_time = rand.exponential(1 / self.service_rate)
-        elif self.service_dist == 'deterministic (M/D/n)':
-            service_time = 1 / self.service_rate
-        elif self.service_dist == 'hyperexponential':
-            if rand.rand() < 0.75:
-                service_time = rand.exponential(1.0)
-            else:
-                service_time = rand.exponential(5.0)
-        else:
-            raise ValueError("Unsupported service time distribution")
-
-        yield self.env.timeout(service_time)
+        yield self.env.timeout(self.service_dist())
 
         # Job completed, update the count and mark the server as idle
         self.completed_jobs += 1
