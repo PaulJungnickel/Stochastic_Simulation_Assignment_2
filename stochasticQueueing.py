@@ -14,7 +14,7 @@ class ServerQueueingSimulation:
         max_queue_len=1000,
         sim_duration=150,
         seed=42,
-        verbose=False
+        verbose=False,
     ):
         """
         Initializes the server queueing simulation with given parameters.
@@ -23,7 +23,7 @@ class ServerQueueingSimulation:
         - arrival_dist: Generator function with distribution of job arrivals.
         - service_dist: Generator function with distribution of job service durations.
         - server_count: Number of servers available (default: 1).
-        - queue_type: Type of queue used, currently only supports 'FIFO' (default: 'FIFO').
+        - queue_type: 'FIFO' or 'SJF' (default: 'FIFO').
         - max_queue_len: Maximum length of the queue before rejecting jobs (default: 1000).
         - sim_duration: Total duration of the simulation (default: 150).
         - seed: Random seed for reproducibility (default: 42).
@@ -47,7 +47,12 @@ class ServerQueueingSimulation:
 
         # Initialize server states (all servers start as not busy) and the queue
         self.server_busy = [False for _ in range(self.server_count)]
-        self.queue = queue.Queue() if queue_type == 'FIFO' else None
+        if queue_type == 'FIFO':
+            self.queue = queue.Queue()
+        elif queue_type == 'SJF':
+            self.queue = queue.PriorityQueue()
+        else:
+            raise ValueError("Unsupported queue type. Use 'FIFO' or 'SJF'.")
 
         # Create the SimPy environment and start the job arrival process
         self.env = simpy.Environment()
@@ -66,8 +71,11 @@ class ServerQueueingSimulation:
                 if self.verbose:
                     print(f"{self.env.now}: Job rejected.")
             else:
-                # Add job to the queue with arrival time and unique job ID
-                self.queue.put((self.env.now, self.job_count))  # Add arrival time and job ID
+                # Generate a job with an arrival time and a service duration
+                arrival_time = self.env.now
+                service_time = self.service_dist()
+                job = (service_time, self.job_count, arrival_time)  # For SJF: use service_time as priority
+                self.queue.put(job)
                 self.job_count += 1
                 # Attempt to assign a job to an idle server
                 self.update_queue()
@@ -75,53 +83,58 @@ class ServerQueueingSimulation:
             # Wait for the next job arrival, based on an exponential distribution
             yield self.env.timeout(self.arrival_dist())
 
-    def server_job(self, server_index, arrival_time):
+    def server_job(self, server_index, job):
         """
-        Handles the processing of a job by a server.
+        Processes a job by a server.
 
         Parameters:
         - server_index: Index of the server that processes the job.
-        - arrival_time: The time at which the job arrived in the system.
+        - job: A tuple containing service time, job ID, and arrival time.
         """
-        # Mark the server as busy
-        self.server_busy[server_index] = True
+        # Unpack the job details
+        service_time, job_id, arrival_time = job
         start_time = self.env.now
         wait_time = start_time - arrival_time
         self.total_waiting_time += wait_time
         if self.verbose:
-            print(f"{start_time:.2f}: Server {server_index} starting job with wait time {wait_time:.2f}")
+            print(f"{start_time:.2f}: Server {server_index} starting job {job_id} with wait time {wait_time:.2f}")
 
-        # Process the job based on the specified service time distribution
-        yield self.env.timeout(self.service_dist())
+        # Process the job
+        self.server_busy[server_index] = True
+        yield self.env.timeout(service_time)
 
-        # Job completed, update the count and mark the server as idle
+        # Job completion
         self.completed_jobs += 1
         self.server_busy[server_index] = False
         if self.verbose:
-            print(f"{self.env.now:.2f}: Server {server_index} finished job.")
-
-        # Check if there are more jobs in the queue to assign
+            print(f"{self.env.now:.2f}: Server {server_index} finished job {job_id}.")
         self.update_queue()
 
     def update_queue(self):
         """
         Assigns jobs from the queue to available servers if any are idle.
         """
+
         if self.queue.empty():
             return
+        
         # Iterate over each server and assign available jobs to idle servers
         for i in range(self.server_count):
             if not self.server_busy[i] and not self.queue.empty():
-                arrival_time, job_id = self.queue.get()
-                # Start processing the job on the idle server
-                self.env.process(self.server_job(i, arrival_time))
+                # SJF
+                if isinstance(self.queue, queue.PriorityQueue): 
+                    job = self.queue.get_nowait()
+                # FIFO
+                else:  
+                    job = self.queue.get_nowait()
+                self.env.process(self.server_job(i, job))
 
     def results(self):
         """
-        Returns the results of the simulation, including average waiting time and job rejection rate.
+        Returns the results of the simulation.
 
         Returns:
-        - Dictionary containing average wait time, rejection rate, completed jobs, total jobs, and rejected jobs.
+        - Dictionary with average wait time, rejection rate, completed jobs, total jobs, and rejected jobs.
         """
         avg_wait_time = self.total_waiting_time / self.completed_jobs if self.completed_jobs > 0 else float('inf')
         rejection_rate = self.rejected_jobs / self.job_count if self.job_count > 0 else 0
@@ -134,33 +147,57 @@ class ServerQueueingSimulation:
         }
 
 
+
 if __name__ == '__main__':
-    arrival_rate = 5.0  # λ
-    service_rate = 6.0  # μ
-    sim_duration = 150
-    num_runs = 50  
-    server_counts = [1, 2, 4]
-    service_dists = ['exponential', 'deterministic (M/D/n)', 'hyperexponential']
+    # some code for 2.3
+    import matplotlib.pyplot as plt
 
-    # Run the simulation for different server counts and service distributions
-    for dist in service_dists:
-        print(f"Service Distribution: {dist}")
-        for n in server_counts:
-            results = []
-            for run_number in range(num_runs):
-                sim = ServerQueueingSimulation(
-                    arrival_rate=arrival_rate,
-                    service_rate=service_rate,
-                    server_count=n,
-                    sim_duration=sim_duration,
-                    seed=run_number,
-                    service_dist=dist,
-                    verbose=False,
-                )
-                results.append(sim.results()["Average Wait Time"])
 
-            # Calculate and print mean wait time and standard deviation for the given server count
-            mean_wait_time = np.mean(results)
-            std_dev = np.std(results, ddof=1)
-            print(f"n = {n}, Mean Wait Time = {mean_wait_time:.4f}, Std Dev = {std_dev:.4f}")
-        print()
+    def M_M_n_simulation(system_load, server_count, sim_duration, seed=42, queue_type='FIFO'):
+        arrival_rate = server_count
+        service_rate = 1 / system_load
+
+        arrival_dist = lambda: rand.exponential(1 / arrival_rate)
+        service_dist = lambda: rand.exponential(1 / service_rate)
+
+        sim = ServerQueueingSimulation(
+            arrival_dist, service_dist, server_count, queue_type=queue_type, sim_duration=sim_duration, seed=seed
+        )
+        return sim.results()
+
+    server_counts = [1]
+    num_runs = 50
+    rand.seed(42)
+    system_loads = 1 - np.logspace(-0.5, -7, 15)
+
+    for queue_type in ['FIFO', 'SJF']:
+        for server_count in server_counts:
+            mean_wait_time = np.zeros_like(system_loads)
+            std_wait_time = np.zeros_like(system_loads)
+            for i, system_load in enumerate(system_loads):
+                wait_times = np.zeros(num_runs)
+                for j in range(num_runs):
+                    res = M_M_n_simulation(
+                        system_load, server_count, 1000, seed=rand.randint(0, 2**31 - 1), queue_type=queue_type
+                    )
+                    wait_times[j] = res['Average Wait Time']
+
+                mean_wait_time[i] = np.mean(wait_times)
+                std_wait_time[i] = np.std(wait_times)
+            plt.errorbar(
+                1 - system_loads,
+                mean_wait_time,
+                std_wait_time,
+                linestyle='',
+                label=f'{queue_type}, n={server_count}',
+                capsize=5,
+                elinewidth=1,
+            )
+
+    plt.grid()
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel(r'$1-\rho$')
+    plt.ylabel('mean wait time')
+    plt.legend(title='Queue Type and Server Count')
+    plt.show()
