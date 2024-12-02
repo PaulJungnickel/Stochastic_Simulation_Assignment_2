@@ -13,6 +13,7 @@ class ServerQueueingSimulation:
         queue_type='FIFO',
         max_queue_len=1000,
         sim_duration=150,
+        warmup_duration=0,
         seed=42,
         verbose=False,
     ):
@@ -26,6 +27,7 @@ class ServerQueueingSimulation:
         - queue_type: 'FIFO' or 'SJF' (default: 'FIFO').
         - max_queue_len: Maximum length of the queue before rejecting jobs (default: 1000).
         - sim_duration: Total duration of the simulation (default: 150).
+        - warmup_duration: Time to run the simulation before starting to compute statistics
         - seed: Random seed for reproducibility (default: 42).
         - service_dist: Service time distribution type ('exponential', 'deterministic', 'hyperexponential').
         - verbose: Whether to print detailed output during the simulation (default: False).
@@ -36,6 +38,8 @@ class ServerQueueingSimulation:
         self.server_count = server_count
         self.max_queue_len = max_queue_len
         self.sim_duration = sim_duration
+        self.warmup_duration = warmup_duration
+        assert warmup_duration < sim_duration
         self.job_count = 0
         self.rejected_jobs = 0
         self.total_waiting_time = 0
@@ -57,6 +61,7 @@ class ServerQueueingSimulation:
         # Create the SimPy environment and start the job arrival process
         self.env = simpy.Environment()
         self.env.process(self.job_arrival())
+        self.env.process(self.end_of_warmup(self.warmup_duration))
         self.env.run(until=self.sim_duration)
 
     def job_arrival(self):
@@ -129,14 +134,32 @@ class ServerQueueingSimulation:
                     job = self.queue.get_nowait()
                 self.env.process(self.server_job(i, job))
 
+
+    def end_of_warmup(self, warmup_duration):
+        """
+        Resets the counting statistics at the end of the warmup period
+        """        
+        yield self.env.timeout(warmup_duration)
+        self.job_count = 0
+        self.rejected_jobs = 0
+        self.total_waiting_time = 0
+        self.completed_jobs = 0
+
+
     def results(self):
         """
         Returns the results of the simulation.
 
         Returns:
         - Dictionary with average wait time, rejection rate, completed jobs, total jobs, and rejected jobs.
-        """
-        avg_wait_time = self.total_waiting_time / self.completed_jobs if self.completed_jobs > 0 else float('inf')
+        """        
+        while not self.queue.empty():
+            job = self.queue.get()
+            arrival_time = job[2]
+
+            self.total_waiting_time += self.sim_duration - arrival_time
+            
+        avg_wait_time = self.total_waiting_time / self.job_count if self.job_count > 0 else float('inf')
         rejection_rate = self.rejected_jobs / self.job_count if self.job_count > 0 else 0
         return {
             "Average Wait Time": avg_wait_time,
