@@ -1,23 +1,30 @@
-# Stochastic_Simulation_Assignment_2
-## Discrete Event Simulation of stochastic client-server interactions
-## Authors:
-- Maarten Stork - 15761770
-- Paul Jungnickel - 15716554
-- Lucas Keijzer - 14041073
+# **Stochastic Simulation Assignment 2**  
+### **Discrete Event Simulation of Stochastic Client-Server Interactions**
 
-## Files:
-- `MaartenStork_15761770_PaulJungnick…5716554_LucasKeijzer_14041073.ipynb` - Notebook containing the results
-- `stochasticQueueing.py` - Contains the DES code
-- `/plots` - Contains all the plots generated 
+---
 
-## Dependencies:
-- **os**: Used for handling file paths and directory operations.
-- **random**: For generating random numbers and seeds.
-- **numpy** (`np`): Used for numerical operations, creating grids, and random number generation.
-- **pandas** (`pd`): For data manipulation and analysis.
-- **matplotlib** (`plt`): Used for plotting graphs and visualizations.
-- **scipy.stats**: Used for statistical analysis, such as t-tests.
-- **mpl_toolkits.mplot3d** (`Axes3D`): Used for creating 3D plots.
+### **Authors**  
+- **Maarten Stork** - 15761770  
+- **Paul Jungnickel** - 15716554  
+- **Lucas Keijzer** - 14041073  
 
+---
 
-LINK : https://github.com/PaulJungnickel/Stochastic_Simulation_Assignment_2
+### **Files**  
+- **`MaartenStork_15761770_PaulJungnickel_15716554_LucasKeijzer_14041073.ipynb`**  
+  The main notebook containing the results and analysis.  
+- **`stochasticQueueing.py`**  
+  A Python script containing the Discrete Event Simulation (DES) implementation.  
+- **`/plots`**  
+  Directory containing all plots generated during the analysis.  
+
+---
+
+### **Dependencies**  
+This project uses the following Python packages:  
+
+- **`simpy`**: For simulating discrete event systems.  
+- **`queue`**: For queue data structures and operations.  
+- **`numpy`** (`np`): For numerical operations and random number generation.  
+- **`matplotlib`** (`plt`): For creating visualizations and plots.  
+- **`scipy.stats`**: Used for statistical tests (e.g., Mann-Whitney U test, Kruskal-Wallis test).  
